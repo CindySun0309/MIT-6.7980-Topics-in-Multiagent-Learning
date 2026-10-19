@@ -27,7 +27,7 @@
 #import "notation.typ": html-vA as vA, html-vR as vR
 #import "notation.typ": html-xhat as xhat, html-yhat as yhat, html-mU as mU, html-upsans as upsans
 #import "markers.typ": paragraph-marker
-#import "lecture-links.typ": lecture-link, lecture-title
+#import "lecture-links.typ": interactive-link, lecture-link, lecture-title
 #import "typography.typ": course-sans-font
 
 #let thmcounters = state("thmcounters", (:))
@@ -374,6 +374,13 @@
   // their authored labels even when nothing references them in the document.
   show html.elem.where(tag: "section"): it => {
     if it.attrs.at("class", default: "").split().contains("proof") and it.has("label") and not "data-label" in it.attrs {
+      html.elem(it.tag, attrs: (..it.attrs, "data-label": str(it.label)), it.body)
+    } else { it }
+  }
+
+  // A solution's authored label belongs to its outer toggle wrapper.
+  show html.elem.where(tag: "div"): it => {
+    if it.attrs.at("class", default: "").split().contains("solution-wrapper") and it.has("label") and not "data-label" in it.attrs {
       html.elem(it.tag, attrs: (..it.attrs, "data-label": str(it.label)), it.body)
     } else { it }
   }

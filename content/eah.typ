@@ -208,7 +208,9 @@ $
 
 Furthermore, for any $vnu$, we know how to prove that at least one of the constraints is violated. The key idea is then to use the ellipsoid method to _certify_ the emptiness of the polytope. Normally, the ellipsoid method is used to find a point in a set, but in our case, the point does not exist and we want to use the ellipsoid method to isolate constraints that prove the emptiness of the set. For this reason, the algorithm was called Ellipsoid-Against-Hope by #citet(<papadimitriou2008computing>).
 
-The ellipsoid will maintain a search space which can be thought of as a suitable subset of the deviator's set. At every iteration $t$, the algorithm will compute the center point $vnu_t$ of the set. Then, it will find a violated constraint using the distribution $vmu_t := vmu \( vnu_t \)$ in the proof of #ref(label("thm:hart schmeidler")). The violated constraint implies that the deviator set must be curtailed, and the ellipsoid will be updated accordingly reducing the size of the search space by a constant. The algorithm will continue until the search space is small enough to guarantee that the set is empty. The iteration count also depends polynomially on the dimension and encoding/conditioning bounds. For an approximate guarantee, use constraints with a positive $epsilon.alt$ margin and the corresponding separation and volume bounds; shrinking an arbitrary open set does not by itself certify exact emptiness. The following algebra describes the exact finite certificate when one has been obtained. By the last iteration $T$, the algorithm will have produced several violated constraints, each of which is associated with a mediator strategy $vmu_t$. The set
+It is convenient to read the minimax problem above as a game between a _mediator_, who chooses the joint distribution $vmu$ (the trusted mediator from #lecture-link("correlated", none)[]), and a _deviator_, who chooses the distribution $vnu in Delta(D)$ over deviations. The ellipsoid method searches over the deviator's strategies. At every iteration $t$, the algorithm computes the center $vnu_t$ of the current ellipsoid. If $vnu_t in.not Delta(D)$, we shift a separating hyperplane to pass through $vnu_t$ and retain the halfspace containing $Delta(D)$. Otherwise, the algorithm takes the mediator strategy $vmu_t := vmu \( vnu_t \)$ from the proof of #ref(label("thm:hart schmeidler")). The constraint indexed by $vmu_t$ is violated at $vnu_t$, so every point of the set above lies in the open halfspace on which this constraint holds. Since the construction in #ref(<sec-hart-schmeidler-proof>, supplement: [Appendix]) gives equality, the boundary of this halfspace passes through $vnu_t$. (If the constraint vanishes identically on $Delta(D)$, it alone certifies that the set is empty, and the algorithm can stop.) The algorithm keeps this half of the ellipsoid and replaces the ellipsoid by the smallest ellipsoid containing that half.
+
+Each such central-cut update reduces the volume of the ellipsoid by a factor of at most $exp(-1/(2(d+1)))$, where $d = |D| - 1$ is the dimension of $Delta(D)$, the method works in its affine hull, and $d >= 2$. This factor approaches $1$ as $d$ grows, so the ellipsoid does not shrink by a constant factor independent of the dimension: halving its volume takes at most $ceil(2(d+1) ln 2)$ iterations. The algorithm continues until the search space is small enough to guarantee that the set is empty, and the iteration count depends polynomially on the dimension and on encoding and conditioning bounds. For an approximate guarantee, use constraints with a positive $epsilon.alt$ margin and the corresponding separation and volume bounds; shrinking an arbitrary open set does not by itself certify exact emptiness. The following algebra describes the exact finite certificate when one has been obtained. By the last iteration $T$, the algorithm will have produced several violated constraints, each of which is associated with a mediator strategy $vmu_t$. The set
 
 $
   lr({vnu in Delta(D) : vec(delim: #none, align: #left,
@@ -239,6 +241,187 @@ $
 
 This completes the sketch of the proof of the correctness of the Ellipsoid-Against-Hope algorithm.
 
+#let valpha = $bold(alpha)$
+#exercise[Recovering mixture weights with Farkas' lemma][
+  Let $D$ be the deviation set defined above, let $m = |D|$,
+  and suppose $T >= 1$ responses $vmu_1,...,vmu_T$
+  have been collected. Define the gain matrix $matA in RR^(m times T)$ by
+  $
+    A_(d,t) := EE_(a ~ vmu_t)[u_(i)(a'_i,a_(-i))-u_(i)(a_i,a_(-i))],
+    quad d=(i,a'_i).
+  $
+  Thus a row is a fixed deviation, a column is a response, and a positive
+  entry is a profitable deviation. Assume the *finite certificate*
+  $
+    {vnu in Delta(D) : matA^T vnu > 0} = emptyset.
+  $
+  All vector inequalities here are coordinatewise.
+
+  + Write the feasibility program for weights $valpha$ whose mixture
+    has nonpositive gain in every row. Convert it to an equality system
+    $matM vz=vb$, $vz>=0$, using one slack variable per row.
+  + Use the following form of Farkas' lemma: exactly one of
+    $exists vz>=0: matM vz=vb$ and
+    $exists vy: matM^T vy>=0, vb^T vy<0$ holds.#footnote[
+      See Boyd and Vandenberghe, _Convex Optimization_, Section 5.8.3,
+      page 263 (#link("https://web.stanford.edu/~boyd/cvxbook/bv_cvxbook.pdf")[book]),
+      for an equivalent form of Farkas' lemma.
+    ]
+    Show that infeasibility of the weight program would give a point in
+    the supposedly empty set. Explain the signs and the normalization.
+  + Prove that the resulting mixture $macron(vmu)=sum_t alpha_t vmu_t$
+    is a CCE. Explain why the finite certificate, rather than just the
+    response guarantee at each queried $vnu_t$, is needed.
+  + For an $epsilon.alt$-CCE, with $epsilon.alt>=0$, identify the
+    corresponding finite certificate and weight constraints.
+] <ex-eah-farkas>
+
+#solution[
+  *1. Encoding the weights.* We seek $valpha>=0$ with
+  $vone_T^T valpha=1$ and $matA valpha<=0$.
+  Here $vone_k$ is the vector of $k$ ones and $matI_m$ is the
+  $m times m$ identity matrix. Introducing nonnegative slacks
+  $vs in RR^m$ makes $matA valpha+vs=0$ equivalent to $matA valpha<=0$.
+  #block(breakable: false)[
+  Use the block system
+  $
+    matM=mat(matA, matI_m; vone_T^T, 0),
+    quad vz=binom(valpha,vs), quad vb=binom(0,1).
+  $
+  ]
+  The block dimensions are $(m+1) times (T+m)$ for $matM$,
+  $T+m$ for $vz$, and $m+1$ for $vb$. The last row enforces total weight
+  one and excludes the zero-weight solution.
+
+  *2. Reading the infeasibility certificate.* Suppose no such weights
+  exist. Farkas supplies $vy=binom(vr,beta)$, where $vr in RR^m$ and
+  $beta in RR$, such that
+  $
+    matA^T vr+beta vone_T>=0, quad vr>=0, quad beta<0.
+  $
+  The first inequalities come from the $T$ weight columns of $matM$;
+  $vr>=0$ comes from its $m$ slack columns; and $vb^T vy=beta<0$ comes
+  from the right-hand side. It follows that
+  $
+    matA^T vr>=-beta vone_T>0.
+  $
+  Since $T>=1$, this rules out $vr=0$. Thus $S=vone_m^T vr>0$, and
+  $vnu=vr/S$ is a distribution on $D$ satisfying
+  $
+    sum_(d in D) A_(d,t) nu_d >=frac(-beta,S)>0
+    quad forall t=1,...,T.
+  $
+  This contradicts the finite certificate, so feasible weights exist.
+  Strict positivity is essential: $matA^T vnu>=0$ allows zero scores
+  and does not contradict the certificate.
+
+  *3. Checking the equilibrium.* The weights define a probability
+  distribution because they are nonnegative and sum to one. Linearity
+  of expectation gives, for every deviation $d=(i,a'_i)$,
+  $
+    EE_(a ~ macron(vmu))[u_(i)(a'_i,a_(-i))-u_(i)(a_i,a_(-i))]
+    =sum_(t=1)^T alpha_t A_(d,t)
+    =(matA valpha)_d<=0.
+  $
+  These are exactly the CCE constraints. The proof requires the finite
+  certificate against *all saved responses*; the separate guarantees
+  $g(vmu_t,vnu_t)<=0$ at the queried pairs do not imply it.
+
+  *4. The approximate version.* Replace the finite certificate by
+  $
+    {vnu in Delta(D) : matA^T vnu>epsilon.alt vone_T}=emptyset
+  $
+  and seek $matA valpha<=epsilon.alt vone_m$, with the same simplex
+  constraints on $valpha$. Apply the argument above to
+  $matA-epsilon.alt vone_m vone_T^T$. Because both probability vectors
+  sum to one, subtracting this matrix shifts each deviation score by
+  exactly $epsilon.alt$. The resulting mixture is an
+  $epsilon.alt$-CCE. This requires the finite certificate, not merely
+  a small search volume.
+] <sol-eah-farkas>
+
+#block(breakable: false)[
+#example[A two-row coefficient calculation][
+  As an algebraic illustration of @ex-eah-farkas, consider
+  $
+    matA=mat(1,-2; -1,1).
+  $
+  Write the weight vector as $valpha=(w,1-w)^T$.
+  Neither column is coordinatewise nonpositive, but the mixture has gains
+  $matA valpha=binom(3w-2,1-2w)$. It is feasible exactly when
+  $1/2<=w<=2/3$. For example, $w=3/5$ gives gains
+  $(-1/5,-1/5)$ and slack vector $vs=(1/5,1/5)$.
+
+  A deviation distribution $vnu=(q,1-q)$ scores the columns as
+  $matA^T vnu=(2q-1,1-3q)$. Both scores would be strictly positive
+  only if $q>1/2$ and $q<1/3$, which is impossible. Thus the finite
+  certificate holds.
+] <ex-eah-farkas-coefficients>
+]
+
+#example[Sampling the final mixture][
+  Write each saved product response as
+  $vmu_t=vx_(1,t) ⊗ ... ⊗ vx_(n,t)$, where
+  $vx_(i,t) in Delta(A_i)$. To sample one profile from
+  $macron(vmu)=sum_(t=1)^T alpha_t vmu_t$:
+
+  + The mediator draws one common index $J$ with
+    $Pr(J=t)=alpha_t$.
+  + Conditional on this index, it draws each $a_i$ independently from
+    $vx_(i,J)$ and privately recommends $a_i$ to player $i$.
+
+  The law of total probability verifies the joint distribution:
+  $
+    Pr(a_1,...,a_n)=sum_(t=1)^T alpha_t
+    product_(i=1)^n x_(i,t)(a_i)=macron(vmu)(a_1,...,a_n).
+  $
+  Independence holds *conditional on $J$*. Keep $J$ private and draw
+  a new shared index for each profile.
+
+  For a separate example, two players choose $L$ or $R$. Each receives
+  utility $1$ when their actions match and $0$ otherwise:
+
+  #table(
+    columns: 3, align: center, inset: .4em, stroke: none,
+    table.header([Player 1 / Player 2], [$L$], [$R$]),
+    [$L$], [$(1,1)$], [$(0,0)$],
+    [$R$], [$(0,0)$], [$(1,1)$],
+  )
+
+  Use product responses $vmu_1=delta_((L,L))$ and
+  $vmu_2=delta_((R,R))$, with weights $alpha_1=3/4$ and $alpha_2=1/4$.
+  Both marginals put probability $3/4$ on $L$, but multiplying those
+  marginals gives a different joint distribution:
+
+  #table(
+    columns: 3, align: center, inset: .4em, stroke: none,
+    table.header([Profile], [$macron(vmu)$], [$macron(vmu)_1 ⊗ macron(vmu)_2$]),
+    [$(L,L)$], [$3/4$], [$9/16$],
+    [$(L,R)$], [$0$], [$3/16$],
+    [$(R,L)$], [$0$], [$3/16$],
+    [$(R,R)$], [$1/4$], [$1/16$],
+  )
+
+  #block(breakable: false)[
+  Under the mixture, each player earns $1$. A fixed deviation to $L$
+  earns $3/4$, and a fixed deviation to $R$ earns $1/4$. Their gains
+  are $-1/4$ and $-3/4$, so the mixture is a CCE.
+  Under the product of its marginals, each player earns
+  $9/16+1/16=5/8$. Always choosing $L$ earns $3/4$, giving gain $1/8>0$.
+  Thus replacing the mixture by its marginal product can lose even
+  the CCE guarantee.
+  ]
+
+  If every player independently draws its own component index $J_i$,
+  the result is precisely the product of the marginals:
+  $
+    product_(i=1)^n (sum_(t=1)^T alpha_t x_(i,t)(a_i)).
+  $
+  Keeping the common index preserves the correlations encoded by the
+  list of product responses and their weights, without enumerating
+  all joint actions. The marginal product can still be a CCE in other cases.
+] <ex-eah-mixture-sampling>
+
 == Applications beyond normal-form games
 
 The above argument mostly uses ideas from convex optimization. In particular, it extends, with suitable oracle and encoding assumptions, to _multilinear games on compact convex domains_, that is, any setting with the following properties:
@@ -256,24 +439,52 @@ For concrete examples of the savings from a succinct representation, consider th
 
 In both examples, the strategy domains are simplexes with efficient separation oracles, and expected utilities are multilinear and evaluable in polynomial time in the compact input size. Thus, explicitly constructing the obvious CE/CCE LP can take exponential time, but the Ellipsoid-Against-Hope framework avoids that expansion. The CCE construction above uses only polynomially many product distributions and a small final LP. For CE, one must also enforce deviations conditional on the recommended action; the exact-CE variant of #citet(<jiang2011polynomial>) computes a rational CE with polynomial-size support in polynomial time for these representations. Such a CE is also a CCE. These guarantees concern finding an equilibrium, not optimizing an arbitrary objective over equilibria.
 
+*Deriving payoffs in a polymatrix game*  Let $N_i$ denote the neighbors of player $i$, and for every $j in N_i$ let $matM^(i j)$ be the matrix specifying player $i$'s payoff from the interaction with player $j$. Thus, at an action profile $a$,
+$
+  u_i (a) = sum_(j in N_i) matM^(i j)_(a_i,a_j) .
+$
+
+Now suppose that the players use a product distribution $vx = vx_1 ⊗ ... ⊗ vx_n$. By linearity of expectation,
+$
+  u_i (vx) & = bb(E)_(a ~ vx) [sum_(j in N_i) matM^(i j)_(a_i,a_j)]\
+  & = sum_(j in N_i) vx_i^top matM^(i j) vx_j .
+$
+The important point is that every term involves only the mixed strategies of two neighboring players. We never need to construct the distribution over all joint action profiles.
+
+The same observation lets us compute deviation gains. If player $i$ deviates to a fixed action $a'_i$, then
+$
+  u_i (a'_i, vx_(-i)) = sum_(j in N_i) ve_(a'_i)^top matM^(i j) vx_j ,
+$
+where $ve_(a'_i)$ denotes the standard basis vector of player i's action space. Define
+$
+  vq_i := sum_(j in N_i) matM^(i j) vx_j .
+$
+The expected payoff from deviating to $a'_i$ is $(vq_i)_(a'_i)$, the expected payoff from following $vx_i$ is $vx_i^top vq_i$, and hence the deviation gain is
+$
+  (vq_i)_(a'_i) - vx_i^top vq_i .
+$
+Thus, after computing $vq_i$, we obtain the deviation gain of every action of player $i$ by reading the corresponding coordinate of $vq_i$.
+
+Computing $matM^(i j) vx_j$ takes time proportional to the size of the payoff matrix on edge $(i,j)$. Repeating this calculation over all edges takes time polynomial in the $O(|E| m^2)$-size polymatrix representation, rather than in the $m^n$ joint action profiles. Finally, deviation gains are linear in the underlying distribution. If Ellipsoid-Against-Hope returns $macron(vmu) = sum_t alpha_t vmu_t$, where every $vmu_t$ is a product distribution, then the deviation gain under $macron(vmu)$ is the same convex combination of the gains computed under the $vmu_t$.
+
 = Expected solutions beyond equilibrium computation <sec-expected-solutions>
 
 This exercise applies the defense-to-offense framework beyond equilibrium computation. It follows Sections 6–7 of #link("https://www.mit.edu/~gfarina/2026/sigecom26_turning_defense_into_offense/sigecom26_turning_defense_into_offense.pdf")[Farina's note]; the fixed-point response below uses a consistent lower-bound payoff convention.
 
 #exercise("Expected variational inequalities and expected fixed points")[
 Let $K subset.eq bb(R)^d$ be nonempty, compact, and convex, with
-$d gt.eq 1$. Fix $epsilon.alt > 0$. Let $F : K arrow.r bb(R)^d$ be
-bounded: there is a finite $M gt.eq 0$ such that
-$parallel F\(vz\)parallel_2 lt.eq M$ for every
-$vz in K$. Separately, let $f : K arrow.r K$ be any map.
+$d >= 1$. Fix $epsilon.alt > 0$. Let $F : K -> bb(R)^d$ be
+bounded: there is a finite $M >= 0$ such that
+$parallel F\(vz\)parallel_2 <= M$ for every
+$vz in K$. Separately, let $f : K -> K$ be any map.
 
 Write $Delta_(upright("fin"))\(K\)$ for the set of probability
 distributions with finite support in $K$. In particular,
 
-$ mu = sum_(t = 1)^T lambda_t delta_(vz_t)\,#h(2em) lambda_t gt.eq 0\,#h(1em) sum_(t = 1)^T lambda_t = 1\, $
+$ mu = sum_(t = 1)^T p_t delta_(vz_t)\,#h(2em) p_t >= 0\,#h(1em) sum_(t = 1)^T p_t = 1\, $
 
 and
-$bb(E)_mu\[g\(vz\)\]= sum_t lambda_t g\(vz_t\)$.
+$bb(E)_mu\[g\(vz\)\]= sum_t p_t g\(vz_t\)$.
 Here $delta_(vz_t)$ is the distribution concentrated at
 $vz_t$. Restricting to finite support makes every
 expectation in this exercise a finite sum, so no additional
@@ -283,7 +494,7 @@ An #strong[$epsilon.alt$-expected variational inequality solution], with
 constant tests, is a distribution $mu in Delta_(upright("fin"))\(K\)$
 such that
 
-$ bb(E)_mu #h(-0.167em) [F \( vz \)^top \( vx - vz \)] gt.eq - epsilon.alt #h(2em) upright("for every ") vx in K . $
+$ bb(E)_mu #h(0em) [F \( vz \)^top \( vx - vz \)] >= - epsilon.alt #h(2em) upright("for every ") vx in K . $
 
 The test $vx$ is fixed independently of the sampled
 $vz$. This is the constant-deviation version of an EVI;
@@ -293,7 +504,7 @@ sample-dependent deviations.
 An #strong[$epsilon.alt$-expected fixed point] is a distribution
 $mu in Delta_(upright("fin"))\(K\)$ such that
 
-$ ∥bb(E)_mu \[ f \( vz \) - vz \]∥_2 lt.eq epsilon.alt . $
+$ ∥bb(E)_mu \[ f \( vz \) - vz \]∥_2 <= epsilon.alt . $
 
 For both applications, use the following convention: the tester
 minimizes the payoff, and the distribution player maximizes it. A
@@ -306,13 +517,13 @@ proof is included after the solution.
 #quote(block: true)[
 #strong[Mixing lemma.] Let $X subset.eq bb(R)^m$ be nonempty, compact,
 and convex, and let $S$ be a nonempty set of response labels. Suppose
-$va : S arrow.r bb(R)^m$ and $b : S arrow.r bb(R)$ are
+$va : S -> bb(R)^m$ and $b : S -> bb(R)$ are
 bounded. Set
 $u\(vx\,s\)= vx^top va\(s\)+ b\(s\)$.
 If, for every $vx in X$, there exists $s in S$ with
-$u\(vx\,s\)gt.eq 0$, then, for every $eta > 0$, there is a
+$u\(vx\,s\)>= 0$, then, for every $eta > 0$, there is a
 finite distribution $nu$ on $S$ satisfying
-$bb(E)_(s tilde.op nu)\[u\(vx\,s\)\]gt.eq - eta$ for every
+$bb(E)_(s ~ nu)\[u\(vx\,s\)\]>= - eta$ for every
 $vx in X$.
 ]
 
@@ -328,7 +539,7 @@ Verify the hypotheses of the mixing lemma and conclude that (EVI) has a
 finite-support solution for every $epsilon.alt > 0$.
 
 #strong[\(b) Expected fixed points and payoff signs.] Let
-$B_2^d = { vq in bb(R)^d : parallel vq parallel_2 lt.eq 1 }$
+$B_2^d = { vq in bb(R)^d : parallel vq parallel_2 <= 1 }$
 and define
 
 $ V\(vq\,mu\)= bb(E)_mu\[vq^top\(f\(vz\)- vz\)\]. $
@@ -346,7 +557,7 @@ assuming that $f$ is continuous.
 #strong[\(c) Expected fixed points need not be pointwise fixed points.]
 Take $K =\[0\,1\]$ and
 
-$ f\(z\)= cases(delim: "{", 1\, & 0 lt.eq z lt.eq 1 / 2\,, 0\, & 1 / 2 < z lt.eq 1 .) $
+$ f\(z\)= cases(delim: "{", 1\, & 0 <= z <= 1 / 2\,, 0\, & 1 / 2 < z <= 1 .) $
 
 Show that $f$ has no fixed point. For
 $mu = 1 / 2 delta_0 + 1 / 2 delta_1$, compute
@@ -365,9 +576,9 @@ this set is empty and how a response produces a linear inequality in the
 test variable.
 
 Suppose a finite collection
-$vz_1\,dots.h\,vz_T$ of responses has been
+$vz_1\,...\,vz_T$ of responses has been
 obtained. Formulate the two feasibility problems for weights
-$vlambda in Delta_T$ that would certify (EVI) and (EFP). For the
+$vp in Delta_T$ that would certify (EVI) and (EFP). For the
 EVI problem, explain how a linear optimization oracle over $K$ checks
 all test points without listing them. State the evaluation and geometric
 oracle access that the reductions need for an algorithmic
@@ -381,10 +592,10 @@ of the ellipsoid iteration bound or a bit-complexity theorem.
 #strong[\(e) Optional extension: why retain $epsilon.alt > 0$ for a
 discontinuous EVI?] Let $K =\[0\,1\]$ and
 
-$ F\(z\)= cases(delim: "{", - 1\, & 0 lt.eq z lt.eq 1 / 2\,, 1\, & 1 / 2 < z lt.eq 1 .) $
+$ F\(z\)= cases(delim: "{", - 1\, & 0 <= z <= 1 / 2\,, 1\, & 1 / 2 < z <= 1 .) $
 
 Show that no finite-support distribution satisfies (EVI) with
-$epsilon.alt = 0$. For $0 < tau lt.eq 1 / 2$, verify that
+$epsilon.alt = 0$. For $0 < tau <= 1 / 2$, verify that
 $mu_tau = 1 / 2 delta_(1\/2) + 1 / 2 delta_(1\/2 + tau)$ has payoff
 $U\(x\,mu_tau\)= - tau\/2$ for every $x in\[0\,1\]$. Choose $tau$ to
 obtain an $epsilon.alt$-EVI for any $epsilon.alt > 0$.
@@ -398,7 +609,7 @@ obtain an $epsilon.alt$-EVI for any $epsilon.alt > 0$.
 
 Linearity of finite sums gives
 
-$ U\(vx\,mu\)= vx^top va_mu - b_mu\,#h(2em) va_mu = sum_t lambda_t F\(vz_t\)\,#h(2em) b_mu = sum_t lambda_t F\(vz_t\)^top vz_t . $
+$ U\(vx\,mu\)= vx^top va_mu - b_mu\,#h(2em) va_mu = sum_t p_t F\(vz_t\)\,#h(2em) b_mu = sum_t p_t F\(vz_t\)^top vz_t . $
 
 Thus the payoff is affine in the test point and linear in the
 distribution weights. It need not be linear or continuous in the
@@ -416,8 +627,8 @@ $va\(vz\)= F\(vz\)$, and
 $b\(vz\)= - F\(vz\)^top vz$.
 Compactness supplies a finite radius
 $R = max_(vz in K) parallel vz parallel_2$,
-so $parallel va\(vz\)parallel_2 lt.eq M$ and
-$\|b\(vz\)\|lt.eq M R$. All hypotheses hold. Taking
+so $parallel va\(vz\)parallel_2 <= M$ and
+$\|b\(vz\)\|<= M R$. All hypotheses hold. Taking
 $eta = epsilon.alt$ gives a finite distribution satisfying (EVI).
 
 The diagonal defense construction alone says that each test has a
@@ -435,14 +646,14 @@ This minimizer exists because a linear function is continuous and $K$ is
 nonempty and compact. Since
 $f\(vz_(vq)\)in K$,
 
-$ vq^top vz_(vq) lt.eq vq^top f\(vz_(vq)\)\,#h(2em) V\(vq\,delta_(vz_(vq))\)gt.eq 0 . $
+$ vq^top vz_(vq) <= vq^top f\(vz_(vq)\)\,#h(2em) V\(vq\,delta_(vz_(vq))\)>= 0 . $
 
 This is the required defense response. At $vq = 0$, any
 point of $K$ works. An oracle written as a maximization oracle can
 implement this response by querying it with $- vq$.
 
 By contrast, maximizing $vq^top vz$ gives
-$vq^top\(f\(vz\)- vz\)lt.eq 0$,
+$vq^top\(f\(vz\)- vz\)<= 0$,
 which is not the lower-bound guarantee required here. Maximization would
 be appropriate after negating the payoff and reversing which player
 seeks a lower or upper bound.
@@ -451,32 +662,32 @@ For the mixing lemma, use $X = B_2^d$, $S = K$,
 $va\(vz\)= f\(vz\)- vz$,
 and $b\(vz\)= 0$. Both $vz$ and
 $f\(vz\)$ belong to $K$, so
-$parallel va\(vz\)parallel_2 lt.eq "diam"\(K\)$.
+$parallel va\(vz\)parallel_2 <= "diam"\(K\)$.
 The lemma therefore gives a finite distribution $mu$ with
-$V\(vq\,mu\)gt.eq - epsilon.alt$ for all
+$V\(vq\,mu\)>= - epsilon.alt$ for all
 $vq in B_2^d$.
 
 Set
 $vr = bb(E)_mu\[f\(vz\)- vz\]$.
-For every $parallel vq parallel_2 lt.eq 1$,
+For every $parallel vq parallel_2 <= 1$,
 Cauchy--Schwarz gives
 
-$ vq^top vr gt.eq - parallel vr parallel_2 . $
+$ vq^top vr >= - parallel vr parallel_2 . $
 
-If $vr eq.not 0$, equality is attained at
+If $vr != 0$, equality is attained at
 $vq = - vr\/parallel vr parallel_2$.
 If $vr = 0$, every direction has payoff zero. Consequently
 
 $ min_(vq in B_2^d) V\(vq\,mu\)= - parallel vr parallel_2 . $
 
 The uniform lower bound implies
-$- parallel vr parallel_2 gt.eq - epsilon.alt$, hence
-$parallel vr parallel_2 lt.eq epsilon.alt$ as required.
+$- parallel vr parallel_2 >= - epsilon.alt$, hence
+$parallel vr parallel_2 <= epsilon.alt$ as required.
 Neither the defense construction nor this proof uses continuity of $f$.
 
 #strong[\(c) What the expectation does, and does not, guarantee]
 
-For $z lt.eq 1\/2$, the equation $f\(z\)= z$ would require $z = 1$,
+For $z <= 1\/2$, the equation $f\(z\)= z$ would require $z = 1$,
 outside that branch. For $z > 1\/2$, it would require $z = 0$, also
 outside that branch. Thus there is no fixed point.
 
@@ -495,15 +706,15 @@ $ f\(bb(E)_mu\[z\]\)- bb(E)_mu\[z\]= 1 - 1 / 2 = 1 / 2 . $
 Expected residuals can cancel. The definition controls the norm of the
 expected residual, not the expected norm, and it does not permit moving
 $f$ outside the expectation. In general
-$f\(bb(E)_mu\[z\]\)eq.not bb(E)_mu\[f\(z\)\]$.
+$f\(bb(E)_mu\[z\]\)!= bb(E)_mu\[f\(z\)\]$.
 
 #strong[\(d) Empty test sets, cuts, and finite certificates]
 
 The two sets are
 
-$ Omega_(upright(V I)) = { vx in K : F\(vz\)^top\(vx - vz\)lt.eq - epsilon.alt upright(" for every ") vz in K }\, $
+$ Omega_(upright(V I)) = { vx in K : F\(vz\)^top\(vx - vz\)<= - epsilon.alt upright(" for every ") vz in K }\, $
 
-$ Omega_(upright(F P)) = { vq in B_2^d : vq^top\(f\(vz\)- vz\)lt.eq - epsilon.alt upright(" for every ") vz in K } . $
+$ Omega_(upright(F P)) = { vq in B_2^d : vq^top\(f\(vz\)- vz\)<= - epsilon.alt upright(" for every ") vz in K } . $
 
 Both are convex intersections of the test domain with linear halfspaces.
 They are empty: the defense response at any candidate test has payoff at
@@ -513,17 +724,17 @@ For a candidate $vx_0 in K$, the VI response is
 $vz = vx_0$. Every point in the purported
 feasible set must obey
 
-$ F\(vx_0\)^top\(vx - vx_0\)lt.eq - epsilon.alt . $
+$ F\(vx_0\)^top\(vx - vx_0\)<= - epsilon.alt . $
 
 The candidate itself has left-hand side zero. For a candidate direction
 $vq_0 in B_2^d$, the fixed-point response
 $vz_(vq_0)$ similarly produces the
 constraint
 
-$ vq^top\(f\(vz_(vq_0)\)- vz_(vq_0)\)lt.eq - epsilon.alt\, $
+$ vq^top\(f\(vz_(vq_0)\)- vz_(vq_0)\)<= - epsilon.alt\, $
 
 violated by $vq_0$. If the coefficient vector of either
-inequality is zero, the inequality is $0 lt.eq - epsilon.alt$ and itself
+inequality is zero, the inequality is $0 <= - epsilon.alt$ and itself
 certifies emptiness; otherwise it supplies a genuine separating
 halfspace. A candidate outside the test domain must instead be rejected
 by that domain's separation oracle.
@@ -535,20 +746,20 @@ Mere emptiness of an arbitrary strict system, or small volume without an
 appropriate quantitative argument, is not being used here as a proof of
 an approximation guarantee.
 
-For given responses $vz_1\,dots.h\,vz_T$,
+For given responses $vz_1\,...\,vz_T$,
 define
 
-$ va\(vlambda\)= sum_t lambda_t F\(vz_t\)\,#h(1em) b\(vlambda\)= sum_t lambda_t F\(vz_t\)^top vz_t\,#h(1em) vr\(vlambda\)= sum_t lambda_t\(f\(vz_t\)- vz_t\). $
+$ va\(vp\)= sum_t p_t F\(vz_t\)\,#h(1em) b\(vp\)= sum_t p_t F\(vz_t\)^top vz_t\,#h(1em) vr\(vp\)= sum_t p_t\(f\(vz_t\)- vz_t\). $
 
 The VI certificate is the feasibility problem
 
-$ vlambda in Delta_T\,#h(2em) min_(vx in K) vx^top va\(vlambda\)- b\(vlambda\)gt.eq - epsilon.alt . $
+$ vp in Delta_T\,#h(2em) min_(vx in K) vx^top va\(vp\)- b\(vp\)>= - epsilon.alt . $
 
 The minimum exists. A linear optimization oracle returns a worst test
 $vx^(*)$. If its payoff is below $- epsilon.alt$, the
 linear inequality
 
-$ sum_t lambda_t F\(vz_t\)^top\(vx^(*) - vz_t\)gt.eq - epsilon.alt $
+$ sum_t p_t F\(vz_t\)^top\(vx^(*) - vz_t\)>= - epsilon.alt $
 
 is a violated constraint in weight space. This checks the entire test
 set, not only a sample of its points. If $K$ is a polytope with an
@@ -558,7 +769,7 @@ small.
 
 The fixed-point certificate is
 
-$ vlambda in Delta_T\,#h(2em) parallel vr\(vlambda\)parallel_2 lt.eq epsilon.alt . $
+$ vp in Delta_T\,#h(2em) parallel vr\(vp\)parallel_2 <= epsilon.alt . $
 
 This is a convex feasibility problem, specifically a second-order cone
 constraint together with simplex constraints; it is not generally a
@@ -574,7 +785,7 @@ final VI certificate. The fixed-point game needs evaluation of $f$,
 linear optimization over $K$ to produce its defense response, and
 separation over the unit ball, which is explicit. For a direction
 outside the ball, the separating inequality
-$vq_0^top vq lt.eq parallel vq_0 parallel_2$
+$vq_0^top vq <= parallel vq_0 parallel_2$
 is valid on the ball and violated by
 $vq = vq_0$.
 
@@ -598,7 +809,7 @@ exact]
 
 At the test $x = 1\/2$,
 
-$ F\(z\)\(1\/2 - z\)= cases(delim: "{", z - 1\/2\, & z lt.eq 1\/2\,, 1\/2 - z\, & z > 1\/2 .) $
+$ F\(z\)\(1\/2 - z\)= cases(delim: "{", z - 1\/2\, & z <= 1\/2\,, 1\/2 - z\, & z > 1\/2 .) $
 
 Every value is nonpositive, and it is zero only at $z = 1\/2$. For a
 finite distribution to have expected payoff at least zero at this test,
@@ -637,12 +848,12 @@ replacing $X$ by ${\(vx\,1\): vx in X }$, it
 is a bilinear payoff on two compact convex sets. The finite-dimensional
 minimax theorem applies, giving
 
-$ max_(vy in C) min_(vx in X) L\(vx\,vy\)= min_(vx in X) max_(vy in C) L\(vx\,vy\)gt.eq 0 . $
+$ max_(vy in C) min_(vx in X) L\(vx\,vy\)= min_(vx in X) max_(vy in C) L\(vx\,vy\)>= 0 . $
 
 The inequality follows because, for each $vx$, the defense
 hypothesis provides a point of $A subset.eq C$ with payoff at least
 zero. There is therefore $vy^(*) in C$ with
-$L\(vx\,vy^(*)\)gt.eq 0$ for all
+$L\(vx\,vy^(*)\)>= 0$ for all
 $vx in X$.
 
 Let
@@ -652,7 +863,7 @@ $tilde(vy) in "conv"\(A\)$ with
 $parallel tilde(vy) - vy^(*) parallel_2 < eta\/H$.
 For every $vx in X$,
 
-$ \|L\(vx\,tilde(vy)\)- L\(vx\,vy^(*)\)\|lt.eq H parallel tilde(vy) - vy^(*) parallel_2 < eta . $
+$ \|L\(vx\,tilde(vy)\)- L\(vx\,vy^(*)\)\|<= H parallel tilde(vy) - vy^(*) parallel_2 < eta . $
 
 The bound is uniform over the whole test domain. By the definition of
 convex hull, $tilde(vy)$ is a finite convex combination of
@@ -663,6 +874,7 @@ Crucially, we took the closure of the moment set, not the closure of the
 graph of $F$ or $f$ and not an unjustified compactness assumption on all
 distributions. The final distribution uses actual response points.
 Approximating its moments accounts for $eta > 0$.
+
 
 
 
